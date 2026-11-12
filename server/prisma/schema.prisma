@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------- ENUMS ----------------
+
+enum EventType {
+  CALL_STARTED
+  CALL_ENDED
+  CALL_FAILED
+}
+
+enum CallStatus {
+  STARTED
+  ENDED
+  FAILED
+  CONFLICTED
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  DEAD
+}
+
+// ---------------- ACCOUNT ----------------
+
+model Account {
+  id                String   @id @default(uuid()) @db.Uuid
+  accountId         String   @unique @map("account_id")
+  monthlyCapSeconds Int      @map("monthly_cap_seconds")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  events       CallEvent[]
+  calls        Call[]
+  monthlyUsage MonthlyUsage[]
+
+  @@map("accounts")
+}
+
+// ---------------- CALL EVENTS ----------------
+
+model CallEvent {
+  id             String    @id @default(uuid()) @db.Uuid
+  eventId        String    @unique @map("event_id")
+  accountId      String    @map("account_id") @db.Uuid
+  callId         String    @map("call_id")
+  eventType      EventType @map("event_type")
+  eventTimestamp DateTime  @map("event_timestamp") @db.Timestamptz(3)
+  receivedAt     DateTime  @default(now()) @map("received_at") @db.Timestamptz(3)
+
+  durationSeconds    Int     @map("duration_seconds")
+  costCents          Int     @map("cost_cents")
+  destinationCountry String? @map("destination_country")
+
+  payload     Json
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(3)
+
+  account  Account   @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  retryJob RetryJob?
+
+  @@index([accountId, eventTimestamp])
+  @@index([accountId, callId])
+  @@map("call_events")
+}
+
+// ---------------- CALLS ----------------
+
+model Call {
+  id        String     @id @default(uuid()) @db.Uuid
+  accountId String     @map("account_id") @db.Uuid
+  callId    String     @map("call_id")
+  status    CallStatus @default(STARTED)
+
+  startedAt DateTime? @map("started_at") @db.Timestamptz(3)
+  endedAt   DateTime? @map("ended_at") @db.Timestamptz(3)
+
+  durationSeconds    Int?    @map("duration_seconds")
+  costCents          Int?    @map("cost_cents")
+  destinationCountry String? @map("destination_country")
+
+  usageMonth     DateTime? @map("usage_month") @db.Date
+  usageAppliedAt DateTime? @map("usage_applied_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@unique([accountId, callId])
+  @@index([accountId, startedAt])
+  @@index([accountId, usageMonth])
+  @@map("calls")
+}
+
+// ---------------- MONTHLY USAGE ----------------
+
+model MonthlyUsage {
+  id        String   @id @default(uuid()) @db.Uuid
+  accountId String   @map("account_id") @db.Uuid
+  month     DateTime @db.Date
+
+  totalDurationSeconds Int @default(0) @map("total_duration_seconds")
+  totalCostCents       Int @default(0) @map("total_cost_cents")
+  completedCalls       Int @default(0) @map("completed_calls")
+
+  capSeconds    Int       @map("cap_seconds")
+  capExceededAt DateTime? @map("cap_exceeded_at") @db.Timestamptz(3)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@unique([accountId, month])
+  @@map("monthly_usage")
+}
+
+// ---------------- RETRY JOBS ----------------
+
+model RetryJob {
+  id          String @id @default(uuid()) @db.Uuid
+  callEventId String @unique @map("call_event_id") @db.Uuid
+
+  status      JobStatus @default(PENDING)
+  attempts    Int       @default(0)
+  nextRetryAt DateTime  @default(now()) @map("next_retry_at") @db.Timestamptz(3)
+
+  lockedAt  DateTime? @map("locked_at") @db.Timestamptz(3)
+  lastError String?   @map("last_error")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  callEvent CallEvent @relation(fields: [callEventId], references: [id], onDelete: Restrict)
+
+  @@index([status, nextRetryAt])
+  @@map("retry_jobs")
+}

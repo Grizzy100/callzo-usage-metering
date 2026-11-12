@@ -1,0 +1,88 @@
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: callzo-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: callzo
+      POSTGRES_PASSWORD: callzo_password
+      POSTGRES_DB: callzo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U callzo -d callzo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build: .
+    container_name: callzo-migrate
+    command: ["npx", "prisma", "migrate", "deploy"]
+    environment:
+      DATABASE_URL: postgresql://callzo:callzo_password@db:5432/callzo
+      DIRECT_URL: postgresql://callzo:callzo_password@db:5432/callzo
+    depends_on:
+      db:
+        condition: service_healthy
+
+  seed:
+    build: .
+    container_name: callzo-seed
+    command: ["npm", "run", "db:seed"]
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://callzo:callzo_password@db:5432/callzo
+      DIRECT_URL: postgresql://callzo:callzo_password@db:5432/callzo
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      DEFAULT_MONTHLY_CAP_SECONDS: ${DEFAULT_MONTHLY_CAP_SECONDS:-600}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  api:
+    build: .
+    container_name: callzo-api
+    restart: unless-stopped
+    command: ["npm", "start"]
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgresql://callzo:callzo_password@db:5432/callzo
+      DIRECT_URL: postgresql://callzo:callzo_password@db:5432/callzo
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+  worker:
+    build: .
+    container_name: callzo-worker
+    restart: unless-stopped
+    command: ["npm", "run", "worker"]
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://callzo:callzo_password@db:5432/callzo
+      DIRECT_URL: postgresql://callzo:callzo_password@db:5432/callzo
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+    driver: local

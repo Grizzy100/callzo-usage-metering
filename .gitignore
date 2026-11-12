@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+server/logs/
+
+# AI editor metadata
+.agents/
+.claude/
+.cursor/
+.devin/
+
+# Build output
+dist/
+coverage/
+
+# IDE
+.vscode/
+.idea/
+
+# Generated Prisma client
+server/src/generated/prisma/
+
+# Temporary simulator
+simulator-check/
