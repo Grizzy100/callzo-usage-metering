@@ -4,6 +4,7 @@ services:
   mock-api:
     image: meetrj/callzo-mock-usage-api
     container_name: mock-api
+    platform: linux/arm64
     ports:
       - "8001:8001"
     restart: unless-stopped

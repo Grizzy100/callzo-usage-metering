@@ -85,6 +85,7 @@ services:
   simulator:
     image: meetrj/callzo-webhook-simulator
     container_name: callzo-simulator
+    platform: linux/arm64
     restart: "no"
     depends_on:
       api:
