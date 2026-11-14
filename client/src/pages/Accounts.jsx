@@ -602,7 +602,7 @@ function Accounts({
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="accounts-table-scroll overflow-x-auto">
             <table className="accounts-table w-full min-w-[1200px] text-left text-[13px]">
               <colgroup>
                 <col className="w-[4%]" />
@@ -705,9 +705,9 @@ function Accounts({
                     <tr
                       key={account.id}
                       onClick={() => onToggleSelectAccount?.(account.id)}
-                      className={`transition-colors cursor-pointer ${
+                      className={`account-row transition-colors cursor-pointer ${
                         isSelected
-                          ? "bg-blue-50/70 hover:bg-blue-100/60"
+                          ? "account-row-selected"
                           : "hover:bg-gray-50"
                       }`}
                     >

@@ -457,7 +457,7 @@ function AccountSettings({ accountId }) {
         {successMessage && (
           <div
             role="status"
-            className="mt-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-700"
+            className="settings-success-message mt-4 rounded-md border p-3 text-sm"
           >
             {successMessage}
           </div>

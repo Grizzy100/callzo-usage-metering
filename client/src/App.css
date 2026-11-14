@@ -93,8 +93,41 @@
   box-shadow: var(--shadow-card);
 }
 
+.settings-success-message {
+  color: var(--color-text);
+  background: var(--color-surface-elevated);
+  border-color: rgba(255, 255, 255, 0.48);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 16px rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .settings-success-message {
+  border-color: rgba(255, 255, 255, 0.62);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.14),
+    0 0 20px rgba(255, 255, 255, 0.14);
+}
+
 .accounts-table {
   table-layout: fixed;
+}
+
+.accounts-table-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overscroll-behavior-x: contain;
+}
+
+.accounts-table-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+.accounts-table-scroll::-webkit-scrollbar-thumb,
+.accounts-table-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .accounts-table th,
@@ -118,6 +151,33 @@
 
 .accounts-table-body tr + tr {
   border-top: 1px solid var(--color-border);
+}
+
+@keyframes selected-account-row-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+[data-theme="dark"] .accounts-table-body .account-row-selected {
+  color: var(--color-text);
+  background: var(--color-surface-elevated);
+  box-shadow: inset 3px 0 0 var(--color-primary), 0 2px 8px rgba(0, 0, 0, 0.18);
+  animation: selected-account-row-bounce 2.4s ease-in-out infinite;
+}
+
+[data-theme="dark"] .accounts-table-body .account-row-selected:hover {
+  background: var(--color-hover);
+}
+
+[data-theme="dark"] .accounts-table-body .account-row-selected td,
+[data-theme="dark"] .accounts-table-body .account-row-selected p {
+  color: inherit;
 }
 
 /* Page introduction */
