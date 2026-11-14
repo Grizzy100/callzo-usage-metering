@@ -1,4 +1,3 @@
-
 services:
   db:
     image: postgres:17-alpine
@@ -37,10 +36,10 @@ services:
       NODE_ENV: development
       DATABASE_URL: postgresql://callzo:callzo_password@db:5432/callzo
       DIRECT_URL: postgresql://callzo:callzo_password@db:5432/callzo
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
-      JWT_SECRET: ${JWT_SECRET}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-callzo_test_secret_change_me}
+      JWT_SECRET: ${JWT_SECRET:-callzo_jwt_secret_dev_key_change_me_12345}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
-      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-callzo_admin_key_change_me}
       DEFAULT_MONTHLY_CAP_SECONDS: ${DEFAULT_MONTHLY_CAP_SECONDS:-600}
     depends_on:
       migrate:
@@ -58,10 +57,10 @@ services:
       PORT: 3000
       DATABASE_URL: postgresql://callzo:callzo_password@db:5432/callzo
       DIRECT_URL: postgresql://callzo:callzo_password@db:5432/callzo
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
-      JWT_SECRET: ${JWT_SECRET}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-callzo_test_secret_change_me}
+      JWT_SECRET: ${JWT_SECRET:-callzo_jwt_secret_dev_key_change_me_12345}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
-      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-callzo_admin_key_change_me}
     depends_on:
       seed:
         condition: service_completed_successfully
@@ -75,13 +74,22 @@ services:
       NODE_ENV: development
       DATABASE_URL: postgresql://callzo:callzo_password@db:5432/callzo
       DIRECT_URL: postgresql://callzo:callzo_password@db:5432/callzo
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET}
-      JWT_SECRET: ${JWT_SECRET}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-callzo_test_secret_change_me}
+      JWT_SECRET: ${JWT_SECRET:-callzo_jwt_secret_dev_key_change_me_12345}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
-      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      ADMIN_API_KEY: ${ADMIN_API_KEY:-callzo_admin_key_change_me}
     depends_on:
       seed:
         condition: service_completed_successfully
+
+  simulator:
+    image: meetrj/callzo-webhook-simulator
+    container_name: callzo-simulator
+    restart: "no"
+    depends_on:
+      api:
+        condition: service_started
+    command: ["--url", "http://api:3000/webhooks/calls", "--scenario", "all"]
 
 volumes:
   postgres_data:

@@ -30,3 +30,5 @@ server/src/generated/prisma/
 
 # Temporary simulator
 simulator-check/
+
+client/docker-compose.override.yml

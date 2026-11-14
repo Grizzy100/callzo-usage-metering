@@ -1,0 +1,19 @@
+
+services:
+  # Provided mock API
+  mock-api:
+    image: meetrj/callzo-mock-usage-api
+    container_name: mock-api
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  # Our React frontend
+  frontend:
+    image: adityapaul908/callzo-task2-frontend:latest
+    container_name: callzo-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mock-api
+    restart: unless-stopped

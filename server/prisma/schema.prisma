@@ -107,9 +107,12 @@ model MonthlyUsage {
   accountId String   @map("account_id") @db.Uuid
   month     DateTime @db.Date
 
-  totalDurationSeconds Int @default(0) @map("total_duration_seconds")
-  totalCostCents       Int @default(0) @map("total_cost_cents")
-  completedCalls       Int @default(0) @map("completed_calls")
+  totalDurationSeconds  Int @default(0) @map("total_duration_seconds")
+  totalCostCents        Int @default(0) @map("total_cost_cents")
+  actualDurationSeconds Int @default(0) @map("actual_duration_seconds")
+  excessDurationSeconds Int @default(0) @map("excess_duration_seconds")
+  excessCostCents       Int @default(0) @map("excess_cost_cents")
+  completedCalls        Int @default(0) @map("completed_calls")
 
   capSeconds    Int       @map("cap_seconds")
   capExceededAt DateTime? @map("cap_exceeded_at") @db.Timestamptz(3)

@@ -13,12 +13,22 @@ async function getAccountUsage(req, res) {
     });
   }
 
+  const [year, monthNumber] = month.split("-").map(Number);
+  const monthDate = new Date(
+    Date.UTC(year, monthNumber - 1, 1)
+  );
+
+  // Single query fetch avoiding sequential roundtrips
   const account = await prisma.account.findUnique({
     where: { accountId },
     select: {
       id: true,
       accountId: true,
       monthlyCapSeconds: true,
+      monthlyUsage: {
+        where: { month: monthDate },
+        take: 1,
+      },
     },
   });
 
@@ -29,20 +39,7 @@ async function getAccountUsage(req, res) {
     });
   }
 
-  const [year, monthNumber] = month.split("-").map(Number);
-
-  const monthDate = new Date(
-    Date.UTC(year, monthNumber - 1, 1)
-  );
-
-  const usage = await prisma.monthlyUsage.findUnique({
-    where: {
-      accountId_month: {
-        accountId: account.id,
-        month: monthDate,
-      },
-    },
-  });
+  const usage = account.monthlyUsage?.[0] ?? null;
 
   const totalDurationSeconds =
     usage?.totalDurationSeconds ?? 0;
@@ -55,6 +52,9 @@ async function getAccountUsage(req, res) {
       monthlyCapSeconds: account.monthlyCapSeconds,
       totalDurationSeconds,
       totalCostCents: usage?.totalCostCents ?? 0,
+      actualDurationSeconds: usage?.actualDurationSeconds ?? 0,
+      excessDurationSeconds: usage?.excessDurationSeconds ?? 0,
+      excessCostCents: usage?.excessCostCents ?? 0,
       completedCalls: usage?.completedCalls ?? 0,
       remainingSeconds: Math.max(
         account.monthlyCapSeconds - totalDurationSeconds,

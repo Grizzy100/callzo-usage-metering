@@ -56,21 +56,85 @@ async function reconcileMonthlyUsage(month) {
           id ASC
       ),
 
-      usage_totals AS (
+      terminal_events AS (
         SELECT
-          account_id,
+          events.account_id,
+          events.call_id,
           date_trunc('month', event_timestamp)::date AS usage_month,
-          SUM(duration_seconds)::integer AS total_duration,
-          SUM(cost_cents)::integer AS total_cost,
-          COUNT(*)::integer AS completed_calls
-        FROM first_terminal
+          events.event_timestamp,
+          events.duration_seconds,
+          events.cost_cents,
+          account.monthly_cap_seconds
+        FROM first_terminal AS events
+        JOIN accounts AS account
+          ON account.id = events.account_id
         WHERE
           event_type::text = 'CALL_ENDED'
           AND event_timestamp >= ${start}
           AND event_timestamp < ${end}
-        GROUP BY
+      ),
+
+      ordered_events AS (
+        SELECT
+          terminal_events.*,
+          COALESCE(
+            SUM(duration_seconds) OVER (
+              PARTITION BY account_id, usage_month
+              ORDER BY event_timestamp, call_id
+              ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+            ),
+            0
+          )::integer AS prior_duration
+        FROM terminal_events
+      ),
+
+      allocated_events AS (
+        SELECT
+          *,
+          LEAST(
+            duration_seconds,
+            GREATEST(monthly_cap_seconds - prior_duration, 0)
+          )::integer AS billable_duration,
+          GREATEST(
+            duration_seconds - LEAST(
+              duration_seconds,
+              GREATEST(monthly_cap_seconds - prior_duration, 0)
+            ),
+            0
+          )::integer AS excess_duration
+        FROM ordered_events
+      ),
+
+      usage_totals AS (
+        SELECT
           account_id,
-          date_trunc('month', event_timestamp)::date
+          usage_month,
+          SUM(billable_duration)::integer AS total_duration,
+          SUM(
+            CASE
+              WHEN duration_seconds = 0 THEN cost_cents
+              ELSE ROUND(
+                cost_cents::numeric * billable_duration /
+                duration_seconds
+              )::integer
+            END
+          )::integer AS total_cost,
+          SUM(duration_seconds)::integer AS actual_duration,
+          SUM(excess_duration)::integer AS excess_duration,
+          SUM(
+            cost_cents -
+            CASE
+              WHEN duration_seconds = 0 THEN cost_cents
+              ELSE ROUND(
+                cost_cents::numeric * billable_duration /
+                duration_seconds
+              )::integer
+            END
+          )::integer AS excess_cost,
+          COUNT(*)::integer AS completed_calls,
+          MAX(monthly_cap_seconds) AS cap_seconds
+        FROM allocated_events
+        GROUP BY account_id, usage_month
       )
 
       INSERT INTO monthly_usage (
@@ -79,6 +143,9 @@ async function reconcileMonthlyUsage(month) {
         month,
         total_duration_seconds,
         total_cost_cents,
+        actual_duration_seconds,
+        excess_duration_seconds,
+        excess_cost_cents,
         completed_calls,
         cap_seconds,
         cap_exceeded_at,
@@ -87,22 +154,23 @@ async function reconcileMonthlyUsage(month) {
       )
       SELECT
         gen_random_uuid(),
-        account.id,
+        usage.account_id,
         usage.usage_month,
         usage.total_duration,
         usage.total_cost,
+        usage.actual_duration,
+        usage.excess_duration,
+        usage.excess_cost,
         usage.completed_calls,
-        account.monthly_cap_seconds,
+        usage.cap_seconds,
         CASE
-          WHEN usage.total_duration > account.monthly_cap_seconds
+          WHEN usage.excess_duration > 0
           THEN NOW()
           ELSE NULL
         END,
         NOW(),
         NOW()
       FROM usage_totals AS usage
-      JOIN accounts AS account
-        ON account.id = usage.account_id
       RETURNING account_id
     `;
 

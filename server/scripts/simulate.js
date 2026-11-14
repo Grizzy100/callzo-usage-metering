@@ -757,9 +757,6 @@ async function testCapBurst() {
     now
   );
 
-  const initialDuration =
-    usageBefore?.totalDurationSeconds || 0;
-
   const cap = account.monthlyCapSeconds;
 
   // Exactly 40 calls.
@@ -849,7 +846,8 @@ async function testCapBurst() {
   }
 
   const actualDuration =
-    usageAfter.totalDurationSeconds - initialDuration;
+    usageAfter.actualDurationSeconds -
+    (usageBefore?.actualDurationSeconds || 0);
 
   const actualCalls =
     usageAfter.completedCalls -
@@ -867,14 +865,15 @@ async function testCapBurst() {
     );
   }
 
-  if (
-    usageAfter.totalDurationSeconds <= usageAfter.capSeconds
-  ) {
-    throw new Error("Monthly cap was not exceeded");
+  if (usageAfter.totalDurationSeconds > usageAfter.capSeconds) {
+    throw new Error("Billable usage exceeded the monthly cap");
   }
 
-  if (!usageAfter.capExceededAt) {
-    throw new Error("Cap exceeded timestamp was not recorded");
+  if (
+    usageAfter.excessDurationSeconds <= 0 ||
+    !usageAfter.capExceededAt
+  ) {
+    throw new Error("Excess usage was not recorded");
   }
 
   return {
@@ -884,6 +883,7 @@ async function testCapBurst() {
     durationPerCall,
     additionalDuration: actualDuration,
     totalMonthlyDuration: usageAfter.totalDurationSeconds,
+    excessDuration: usageAfter.excessDurationSeconds,
     capExceededAt: usageAfter.capExceededAt,
   };
 }

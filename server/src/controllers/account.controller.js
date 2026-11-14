@@ -1,10 +1,16 @@
 import { z } from "zod";
 import prisma from "../config/db.js";
 
+const ALLOWED_SORT_COLUMNS = ["accountId", "monthlyCapSeconds", "createdAt"];
+
 const querySchema = z.object({
   page: z.string().regex(/^\d+$/).optional(),
   limit: z.string().regex(/^\d+$/).optional(),
   search: z.string().trim().max(50).optional(),
+  sort_by: z.enum(["accountId", "monthlyCapSeconds", "createdAt"]).optional(),
+  sort_dir: z.enum(["asc", "desc"]).optional(),
+  include_usage: z.enum(["true", "false"]).optional(),
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
 });
 
 async function getAccounts(req, res) {
@@ -21,6 +27,9 @@ async function getAccounts(req, res) {
   const page = Number(validation.data.page || 1);
   const limit = Number(validation.data.limit || 10);
   const search = validation.data.search || "";
+  const sortBy = validation.data.sort_by || "accountId";
+  const sortDir = validation.data.sort_dir || "asc";
+  const includeUsage = validation.data.include_usage === "true";
 
   if (page < 1 || limit < 1 || limit > 100) {
     return res.status(400).json({
@@ -38,30 +47,67 @@ async function getAccounts(req, res) {
       }
     : {};
 
+  // Parse target month for usage if requested
+  const targetMonthStr = validation.data.month || new Date().toISOString().slice(0, 7);
+  const [year, monthNumber] = targetMonthStr.split("-").map(Number);
+  const monthDate = new Date(Date.UTC(year, monthNumber - 1, 1));
+
+  const selectFields = {
+    accountId: true,
+    monthlyCapSeconds: true,
+    createdAt: true,
+    ...(includeUsage && {
+      monthlyUsage: {
+        where: { month: monthDate },
+        take: 1,
+        select: {
+          totalDurationSeconds: true,
+          totalCostCents: true,
+          actualDurationSeconds: true,
+          excessDurationSeconds: true,
+          excessCostCents: true,
+          completedCalls: true,
+          capExceededAt: true,
+        },
+      },
+    }),
+  };
+
+  // Run data fetch and count in a single atomic transaction
   const [accounts, total] = await prisma.$transaction([
     prisma.account.findMany({
       where,
-      orderBy: { accountId: "asc" },
+      orderBy: { [sortBy]: sortDir },
       skip: (page - 1) * limit,
       take: limit,
-      select: {
-        accountId: true,
-        monthlyCapSeconds: true,
-        createdAt: true,
-      },
+      select: selectFields,
     }),
-
     prisma.account.count({ where }),
   ]);
 
+  // Cleanly format response, flattening usage if included (avoids N+1 client queries)
+  const formattedAccounts = accounts.map((account) => {
+    if (!includeUsage) {
+      return account;
+    }
+
+    const { monthlyUsage, ...rest } = account;
+    return {
+      ...rest,
+      usage: monthlyUsage?.[0] || null,
+    };
+  });
+
   return res.status(200).json({
     success: true,
-    data: accounts,
+    data: formattedAccounts,
     pagination: {
       page,
       limit,
       total,
       totalPages: Math.ceil(total / limit),
+      sortBy,
+      sortDir,
     },
   });
 }

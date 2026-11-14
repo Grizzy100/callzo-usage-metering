@@ -10,6 +10,28 @@ function getUsageMonth(timestamp) {
   );
 }
 
+function allocateUsage(durationSeconds, costCents, billableSeconds) {
+  const billableDurationSeconds = Math.max(
+    0,
+    Math.min(durationSeconds, billableSeconds)
+  );
+  const excessDurationSeconds =
+    durationSeconds - billableDurationSeconds;
+  const billableCostCents =
+    durationSeconds === 0
+      ? costCents
+      : Math.round(
+          (costCents * billableDurationSeconds) / durationSeconds
+        );
+
+  return {
+    billableDurationSeconds,
+    billableCostCents,
+    excessDurationSeconds,
+    excessCostCents: costCents - billableCostCents,
+  };
+}
+
 async function processCallEvent(eventId) {
   return prisma.$transaction(async (tx) => {
     // 1. Find the event.
@@ -129,6 +151,38 @@ async function processCallEvent(eventId) {
             },
           });
 
+          await tx.$queryRaw`
+            SELECT pg_advisory_xact_lock(
+              hashtextextended(
+                ${event.accountId} || ':' || ${usageMonth.toISOString()},
+                0
+              )
+            )::text AS lock_result
+          `;
+
+          const existingUsage = await tx.monthlyUsage.findUnique({
+            where: {
+              accountId_month: {
+                accountId: event.accountId,
+                month: usageMonth,
+              },
+            },
+            select: {
+              totalDurationSeconds: true,
+            },
+          });
+
+          const remainingSeconds = Math.max(
+            account.monthlyCapSeconds -
+              (existingUsage?.totalDurationSeconds ?? 0),
+            0
+          );
+          const allocation = allocateUsage(
+            event.durationSeconds,
+            event.costCents,
+            remainingSeconds
+          );
+
           // Update the call lifecycle.
           await tx.call.update({
             where: { id: call.id },
@@ -143,7 +197,7 @@ async function processCallEvent(eventId) {
             },
           });
 
-          // Add usage atomically.
+          // Add usage atomically after locking the account-month aggregate.
           const usage = await tx.monthlyUsage.upsert({
             where: {
               accountId_month: {
@@ -155,20 +209,34 @@ async function processCallEvent(eventId) {
               accountId: event.accountId,
               month: usageMonth,
               capSeconds: account.monthlyCapSeconds,
-              totalDurationSeconds: event.durationSeconds,
-              totalCostCents: event.costCents,
+              totalDurationSeconds:
+                allocation.billableDurationSeconds,
+              totalCostCents: allocation.billableCostCents,
+              actualDurationSeconds: event.durationSeconds,
+              excessDurationSeconds:
+                allocation.excessDurationSeconds,
+              excessCostCents: allocation.excessCostCents,
               completedCalls: 1,
               capExceededAt:
-                event.durationSeconds > account.monthlyCapSeconds
+                allocation.excessDurationSeconds > 0
                   ? new Date()
                   : null,
             },
             update: {
               totalDurationSeconds: {
-                increment: event.durationSeconds,
+                increment: allocation.billableDurationSeconds,
               },
               totalCostCents: {
-                increment: event.costCents,
+                increment: allocation.billableCostCents,
+              },
+              actualDurationSeconds: {
+                increment: event.durationSeconds,
+              },
+              excessDurationSeconds: {
+                increment: allocation.excessDurationSeconds,
+              },
+              excessCostCents: {
+                increment: allocation.excessCostCents,
               },
               completedCalls: {
                 increment: 1,
@@ -178,7 +246,7 @@ async function processCallEvent(eventId) {
 
           // Mark when the account crosses its monthly cap.
           if (
-            usage.totalDurationSeconds > usage.capSeconds &&
+            usage.excessDurationSeconds > 0 &&
             !usage.capExceededAt
           ) {
             await tx.monthlyUsage.update({
@@ -214,4 +282,5 @@ async function processCallEvent(eventId) {
   });
 }
 
+export { allocateUsage };
 export default processCallEvent;
