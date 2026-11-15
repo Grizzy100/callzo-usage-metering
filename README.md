@@ -42,6 +42,15 @@ Both projects run with a single command via Docker Compose.
 cd server
 docker compose up
 ```
+The provided webhook simulator image is ARM64-only. On an AMD64/x86-64
+Docker host, enable ARM64 emulation once before starting the stack:
+```bash
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+docker run --rm --platform linux/arm64 alpine uname -m
+```
+The verification command should output `aarch64`. The API and database images
+run natively on AMD64; only the simulator requires emulation.
+
 Starts:
 - **PostgreSQL 17** (`callzo-db`) on port `5432`
 - **Database Migrations** (`callzo-migrate`)
@@ -55,11 +64,27 @@ Health check:
 curl http://localhost:3000/health
 ```
 
+To run the repository integration scenarios against the running API and the
+same Docker PostgreSQL database:
+```bash
+docker compose exec api node scripts/simulate.js
+```
+
 ### Task 2: Usage Admin Console UI
 ```bash
 cd client
 docker compose up
 ```
+The provided mock API image is ARM64-only, while the submitted frontend image
+is AMD64-only. On an AMD64/x86-64 Docker host, enable ARM64 emulation once
+before starting the stack:
+```bash
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+docker run --rm --platform linux/arm64 alpine uname -m
+```
+The verification command should output `aarch64`. The frontend runs natively
+on AMD64; only the mock API requires emulation.
+
 Starts:
 - **Mock Telephony API** (`mock-api`) on port `8001`
 - **React Admin Console** (`callzo-frontend`) on port `3000`

@@ -13,6 +13,17 @@ cd client
 docker compose up
 ```
 
+The submitted frontend image targets AMD64/x86-64. The provided mock API image
+is ARM64-only, so AMD64/x86-64 Docker hosts must enable ARM64 emulation once:
+
+```bash
+docker run --privileged --rm tonistiigi/binfmt --install arm64
+docker run --rm --platform linux/arm64 alpine uname -m
+```
+
+The verification command should output `aarch64`. The frontend runs natively;
+only the mock API uses emulation.
+
 - **Frontend Console**: Open [http://localhost:3000](http://localhost:3000)
 - **Mock API**: Accessible at [http://localhost:8001](http://localhost:8001)
 

@@ -473,6 +473,22 @@ h3 {
   background: var(--color-sidebar);
 }
 
+.sidebar-logo-dark {
+  display: none;
+}
+
+.sidebar-logo-light {
+  display: block;
+}
+
+[data-theme="dark"] .sidebar-logo-dark {
+  display: block;
+}
+
+[data-theme="dark"] .sidebar-logo-light {
+  display: none;
+}
+
 [data-theme="dark"] .text-red-700,
 [data-theme="dark"] .text-red-600 {
   color: #fca5a5;

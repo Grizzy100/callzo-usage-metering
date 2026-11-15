@@ -566,7 +566,7 @@ function Accounts({
               All accounts
             </h2>
             <p className="mt-1 text-xs text-gray-500">
-              Select accounts using checkboxes or click to configure settings.
+              Select accounts using checkboxes or use the Action button to configure settings.
             </p>
           </div>
 
@@ -704,8 +704,7 @@ function Accounts({
                   return (
                     <tr
                       key={account.id}
-                      onClick={() => onToggleSelectAccount?.(account.id)}
-                      className={`account-row transition-colors cursor-pointer ${
+                      className={`account-row transition-colors ${
                         isSelected
                           ? "account-row-selected"
                           : "hover:bg-gray-50"

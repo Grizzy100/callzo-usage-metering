@@ -77,16 +77,26 @@ The database schema is designed for correctness, auditability, and immutability:
 
 ### 5. Monthly Cap Enforcement & Boundary Behavior
 - **Strategy**: **Hard Billable Cap with Soft Excess Tracking and Proration**.
+- The cap is hard for billable usage: counted usage never exceeds
+  `monthly_cap_seconds`. It is soft for ingestion: calls are accepted and
+  excess usage is retained for audit and reporting rather than rejected.
 - When an account's usage is below the cap, calls are 100% billable.
 - When a call crosses the monthly cap boundarypartway through:
   - The call's duration is split into **billable duration** (up to cap) and **excess duration** (beyond cap).
   - The call's cost is prorated: $\text{billable\_cost} = \text{round}\left(\frac{\text{cost} \times \text{billable\_duration}}{\text{duration}}\right)$.
   - Excess duration and excess cost are recorded in `monthly_usage` for auditing and overage reporting.
-  - `cap_exceeded_at` timestamp is recorded on the exact transition call.
+  - The crossing call is partially billable and partially excess; it is not rejected.
+  - `cap_exceeded_at` is recorded when the first excess usage is applied.
   - Subsequent calls within that month have `0` billable duration, with 100% of duration and cost tracked in excess fields.
+- The webhook response remains an accepted event response. Account usage
+  consumers can detect the cap through `capExceededAt`, `excessDurationSeconds`,
+  and `excessCostCents` in the authenticated usage APIs.
 
 ### 6. Background Retry Worker
 - Webhook events are queued into `retry_jobs`.
+- A retry job is the normal asynchronous processing queue record; its creation
+  does not indicate a failure. Successfully processed events transition to
+  `COMPLETED`.
 - Background worker polls using `FOR UPDATE SKIP LOCKED` to lock and claim jobs atomically.
 - **Exponential Backoff**: $5\text{s} \times 2^{(\text{attempt} - 1)}$ (5s, 10s, 20s, 40s, 60s max).
 - After 5 failed attempts, jobs transition to `DEAD` for engineer inspection and dead-letter monitoring.
@@ -121,8 +131,22 @@ Runs unit tests covering:
 
 Run integration simulation:
 ```bash
-npm run test:integration
+docker compose exec api node scripts/simulate.js
 ```
+Run this from the `server/` directory after the stack is healthy. Running the
+script inside the API container is intentional: it uses the same
+`DATABASE_URL` as the API and worker, avoiding a host `.env` database mismatch.
+The simulation covers normal, duplicate, out-of-order, late, malformed,
+bad-signature, and cap-burst scenarios.
+
+For a clean end-to-end run against the provided simulator:
+```bash
+docker compose down -v
+docker compose up --build -d
+docker compose logs simulator
+```
+The simulator is ARM64-only; follow the emulation setup in the repository
+root README when running on an AMD64/x86-64 Docker host.
 Simulates all 7 telephony scenarios: `normal`, `duplicate`, `out_of_order`, `late`, `malformed`, `bad_signature`, and `cap_burst`.
 
 ---

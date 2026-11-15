@@ -73,9 +73,16 @@ function Sidebar({ activePage, onNavigate, isOpen, onClose }) {
       >
         {/* Brand */}
         <div className="flex h-14 shrink-0 items-center gap-3 px-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-green-600 text-lg font-bold text-white">
-            C
-          </div>
+          <img
+            src="/callzo-logo-light.svg"
+            alt="Callzo logo"
+            className="sidebar-logo sidebar-logo-light h-9 w-auto"
+          />
+          <img
+            src="/callzo-logo-dark.svg"
+            alt="Callzo logo"
+            className="sidebar-logo sidebar-logo-dark h-9 w-auto"
+          />
 
           <div>
             <p className="text-base font-extrabold tracking-tight text-gray-900">
