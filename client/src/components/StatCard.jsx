@@ -44,7 +44,18 @@ function StatIcon({ type }) {
   return (
     <svg {...common}>
       <circle cx="12" cy="12" r="8.5" />
-      <path d="M8.5 10h7M8.5 14h7M12 7.5v9" />
+      <text
+        x="12"
+        y="12"
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize="13"
+        fontWeight="600"
+        fill="currentColor"
+        stroke="none"
+      >
+        $
+      </text>
     </svg>
   );
 }
