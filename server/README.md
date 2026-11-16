@@ -148,12 +148,3 @@ docker compose logs simulator
 The simulator is ARM64-only; follow the emulation setup in the repository
 root README when running on an AMD64/x86-64 Docker host.
 Simulates all 7 telephony scenarios: `normal`, `duplicate`, `out_of_order`, `late`, `malformed`, `bad_signature`, and `cap_burst`.
-
----
-
-## 🔮 What I Would Do Next With More Time
-
-1. **PostgreSQL Table Partitioning**: Partition `call_events` by month (`PARTITION BY RANGE (event_timestamp)`) for horizontal scaling over tens of millions of events.
-2. **Distributed Queue (Redis / BullMQ / SQS)**: Replace database polling with a distributed message queue for sub-millisecond dispatch at high throughput.
-3. **OpenTelemetry Tracing**: Add distributed tracing spans across webhook ingestion, database transactions, and background workers.
-4. **WebSocket / SSE Live Metering**: Stream live cap alerts and usage spikes directly to client dashboards in real time.
