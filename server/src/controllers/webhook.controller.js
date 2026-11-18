@@ -1,4 +1,4 @@
-
+import { z } from "zod";
 import webhookSchema from "../validators/webhook.validator.js";
 import storeWebhookEvent from "../services/webhook.service.js";
 import logger from "../utils/logger.js";
@@ -6,7 +6,6 @@ import logger from "../utils/logger.js";
 async function receiveWebhook(req, res) {
   let payload;
 
-  // Parse JSON only after signature verification.
   try {
     payload = JSON.parse(req.body.toString("utf8"));
   } catch {
@@ -22,13 +21,12 @@ async function receiveWebhook(req, res) {
     return res.status(400).json({
       success: false,
       message: "Invalid webhook payload",
-      errors: validation.error.flatten().fieldErrors,
+      errors: z.flattenError(validation.error).fieldErrors,
     });
   }
 
   const event = validation.data;
 
-  // Validate event-specific values.
   if (
     event.event_type === "call.started" ||
     event.event_type === "call.failed"

@@ -1,31 +1,22 @@
+// To fetch multiple accounts
+
 import { z } from "zod";
 import prisma from "../config/db.js";
-
-const ALLOWED_SORT_COLUMNS = ["accountId", "monthlyCapSeconds", "createdAt"];
-
-const querySchema = z.object({
-  page: z.string().regex(/^\d+$/).optional(),
-  limit: z.string().regex(/^\d+$/).optional(),
-  search: z.string().trim().max(50).optional(),
-  sort_by: z.enum(["accountId", "monthlyCapSeconds", "createdAt"]).optional(),
-  sort_dir: z.enum(["asc", "desc"]).optional(),
-  include_usage: z.enum(["true", "false"]).optional(),
-  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).optional(),
-});
+import { accountQuerySchema } from "../validators/account.validator.js";
 
 async function getAccounts(req, res) {
-  const validation = querySchema.safeParse(req.query);
+  const validation = accountQuerySchema.safeParse(req.query);
 
   if (!validation.success) {
     return res.status(400).json({
       success: false,
       message: "Invalid query parameters",
-      errors: validation.error.flatten(),
+      errors: z.flattenError(validation.error),
     });
   }
 
-  const page = Number(validation.data.page || 1);
-  const limit = Number(validation.data.limit || 10);
+  const page = Number(validation.data.page || 1);  //default is 1
+  const limit = Number(validation.data.limit || 10);  //default is 10
   const search = validation.data.search || "";
   const sortBy = validation.data.sort_by || "accountId";
   const sortDir = validation.data.sort_dir || "asc";
