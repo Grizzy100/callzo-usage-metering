@@ -103,8 +103,10 @@ The database schema is designed for correctness, auditability, and immutability:
 
 ### 7. Reconciliation Step
 - Triggered on demand via `npm run db:reconcile [YYYY-MM]`.
-- Implements an atomic, advisory-locked PostgreSQL Common Table Expression (CTE) query that recalculates usage totals directly from raw immutable `call_events`.
-- Replaces any drifted aggregates with guaranteed ground-truth numbers while maintaining exact boundary proration.
+
+- Recomputes usage totals directly from raw, immutable `call_events` using a clean, chronological event loop.
+- Deduplicates events by arrival time, prioritizes initial terminal outcomes (e.g. `CALL_FAILED`), and recalculates exact billable versus excess usage.
+- Replaces drifted aggregates with guaranteed ground-truth numbers while maintaining exact boundary proration.
 
 ---
 

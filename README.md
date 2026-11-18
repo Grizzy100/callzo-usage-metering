@@ -2,8 +2,8 @@
 
 This repository contains the complete submission for the **Software Engineer Intern** role at Callzo, organized into two independent, production-ready tasks:
 
-- **[Task 1: Backend Usage Metering Service (`server/`)](file:///d:/Company%20based%20Assignments/CallZu%20Assignment/server/README.md)**
-- **[Task 2: Usage Admin Console UI (`client/`)](file:///d:/Company%20based%20Assignments/CallZu%20Assignment/client/README.md)**
+- **[Task 1: Backend Usage Metering Service (`server/`)](./server/README.md)**
+- **[Task 2: Usage Admin Console UI (`client/`)](./client/README.md)**
 
 ---
 
